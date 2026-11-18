@@ -85,7 +85,7 @@
           Caja
         </button>
         <button onclick="switchTab('catalog')" id="tab-catalog" class="nav-tab px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">
-          Catálogo
+          Catálogo e Inventario
         </button>
         <button type="button" onclick="toggleTheme()" title="Cambiar tema claro/oscuro"
           class="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors">
@@ -272,7 +272,7 @@
         </div>
       </div>
 
-      <!-- PESTAÑA 4: CATÁLOGO DE SERVICIOS Y PRODUCTOS -->
+      <!-- PESTAÑA 4: CATÁLOGO DE SERVICIOS Y PRODUCTOS (CON STOCK) -->
       <div id="view-catalog" class="tab-view hidden space-y-6">
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
           <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
@@ -283,15 +283,17 @@
             </button>
           </div>
           
-          <form id="newCatalogItemForm" class="grid grid-cols-1 sm:grid-cols-5 gap-3">
-            <select id="itemType" class="px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
+          <form id="newCatalogItemForm" class="grid grid-cols-1 sm:grid-cols-6 gap-3">
+            <select id="itemType" onchange="toggleStockInput()" class="px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
               <option value="Servicio">Servicio</option>
               <option value="Producto">Producto</option>
             </select>
-            <input type="text" id="itemName" placeholder="Nombre (ej. Corte Dama)" required
+            <input type="text" id="itemName" placeholder="Nombre (ej. Shampoo)" required
               class="sm:col-span-2 px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
-            <input type="number" step="0.01" id="itemPrice" placeholder="Precio (Q)" required
+            <input type="number" step="0.01" min="0" id="itemPrice" placeholder="Precio (Q)" required
               class="px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
+            <input type="number" step="1" min="0" id="itemStock" placeholder="Stock (N/A)" disabled
+              class="px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 rounded-xl text-sm disabled:cursor-not-allowed">
             <button type="submit"
               class="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors">
               Guardar
@@ -300,7 +302,10 @@
         </div>
 
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-          <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Catálogo Activo en Firebase</h2>
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Catálogo e Inventario Activo</h2>
+            <span class="text-xs text-slate-500 dark:text-slate-400">Usa los botones + y - en los productos para reabastecer stock</span>
+          </div>
           <div id="catalogList" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <!-- Renderizado dinámico -->
           </div>
@@ -339,6 +344,23 @@
       updateThemeIcons();
     };
     updateThemeIcons();
+
+    window.toggleStockInput = function() {
+      const type = document.getElementById('itemType').value;
+      const stockInput = document.getElementById('itemStock');
+      if (type === 'Producto') {
+        stockInput.disabled = false;
+        stockInput.required = true;
+        stockInput.placeholder = "Stock inicial";
+        stockInput.className = "px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm";
+      } else {
+        stockInput.disabled = true;
+        stockInput.required = false;
+        stockInput.value = "";
+        stockInput.placeholder = "Stock (N/A)";
+        stockInput.className = "px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 rounded-xl text-sm disabled:cursor-not-allowed";
+      }
+    };
   </script>
 
   <script type="module">
@@ -347,7 +369,7 @@
       getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut 
     } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
     import { 
-      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, serverTimestamp 
+      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, serverTimestamp, writeBatch, increment 
     } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -371,7 +393,7 @@
     let sales = [];
     let cart = [];
     let currentChargingAppointmentId = null;
-    let activeRegister = null; // Guarda el documento de caja abierta
+    let activeRegister = null;
 
     // 1. Control de Sesión con Firebase Authentication
     onAuthStateChanged(auth, (user) => {
@@ -494,7 +516,6 @@
         closedPanel.classList.add('hidden');
         openPanel.classList.remove('hidden');
 
-        // Calcular totales del turno activo
         const shiftSales = sales.filter(s => s.registerId === activeRegister.id);
         const cashSales = shiftSales
           .filter(s => s.paymentMethod === "Efectivo")
@@ -606,34 +627,74 @@
       const app = appointments.find(a => a.id === appId);
       if (!app) return;
       currentChargingAppointmentId = appId;
-      cart = [{ name: `${app.serviceName} (${app.clientName})`, price: Number(app.price) }];
+      cart = [{
+        itemId: app.serviceId || null,
+        type: "Servicio",
+        name: `${app.serviceName} (${app.clientName})`,
+        price: Number(app.price)
+      }];
       renderCart();
       window.switchTab('pos');
     };
 
+    // 4. Punto de Venta con Validación de Stock
     function renderPOSItems() {
       const grid = document.getElementById('posItemsGrid');
       if (catalogItems.length === 0) {
-        grid.innerHTML = `<p class="text-xs text-slate-400 col-span-2 py-6 text-center">Ve a la pestaña "Catálogo" para agregar tus servicios y productos.</p>`;
+        grid.innerHTML = `<p class="text-xs text-slate-400 col-span-2 py-6 text-center">Ve a la pestaña "Catálogo e Inventario" para agregar tus servicios y productos.</p>`;
         return;
       }
 
-      grid.innerHTML = catalogItems.map(item => `
-        <div onclick="window.addToCart('${item.id}')"
-          class="cursor-pointer p-4 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-rose-500 transition-all flex justify-between items-center">
-          <div>
-            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${item.type}</span>
-            <p class="font-semibold text-sm text-slate-800 dark:text-slate-100 mt-1">${item.name}</p>
+      grid.innerHTML = catalogItems.map(item => {
+        const isProduct = item.type === "Producto";
+        const stock = isProduct ? Number(item.stock ?? 0) : null;
+        const outOfStock = isProduct && stock <= 0;
+
+        const stockBadge = isProduct
+          ? `<span class="ml-1.5 text-[10px] font-semibold px-2 py-0.5 rounded ${outOfStock ? 'bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'}">
+               ${outOfStock ? 'Agotado' : `Stock: ${stock}`}
+             </span>`
+          : '';
+
+        return `
+          <div ${outOfStock ? '' : `onclick="window.addToCart('${item.id}')"`}
+            class="p-4 border rounded-xl transition-all flex justify-between items-center
+            ${outOfStock
+              ? 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 opacity-60 cursor-not-allowed'
+              : 'cursor-pointer border-slate-200 dark:border-slate-700 hover:border-rose-500'}">
+            <div>
+              <div class="flex items-center">
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${item.type}</span>
+                ${stockBadge}
+              </div>
+              <p class="font-semibold text-sm text-slate-800 dark:text-slate-100 mt-1.5">${item.name}</p>
+            </div>
+            <span class="font-bold text-rose-600 dark:text-rose-400">${CURRENCY}${Number(item.price).toFixed(2)}</span>
           </div>
-          <span class="font-bold text-rose-600 dark:text-rose-400">${CURRENCY}${Number(item.price).toFixed(2)}</span>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     window.addToCart = function(itemId) {
       const item = catalogItems.find(i => i.id === itemId);
       if (!item) return;
-      cart.push({ name: item.name, price: Number(item.price) });
+
+      if (item.type === "Producto") {
+        const availableStock = Number(item.stock ?? 0);
+        const alreadyInCart = cart.filter(c => c.itemId === item.id).length;
+
+        if (alreadyInCart >= availableStock) {
+          alert(`Stock insuficiente para "${item.name}". Solo hay ${availableStock} unidad(es) disponible(s).`);
+          return;
+        }
+      }
+
+      cart.push({
+        itemId: item.id,
+        type: item.type,
+        name: item.name,
+        price: Number(item.price)
+      });
       renderCart();
     };
 
@@ -667,7 +728,7 @@
       document.getElementById('posCartTotal').innerText = `${CURRENCY}${total.toFixed(2)}`;
     }
 
-    // 4. Registrar Venta vinculada a la Caja Abierta
+    // 5. Registrar Venta y Descontar Inventario Atómicamente (writeBatch)
     window.processSale = async function() {
       if (!activeRegister) {
         alert("La caja está cerrada. Abre la caja primero para poder registrar cobros.");
@@ -678,28 +739,49 @@
 
       const btn = document.getElementById('processSaleBtn');
       btn.disabled = true;
-      btn.innerText = "Registrando venta...";
+      btn.innerText = "Registrando venta y descontando stock...";
 
       const total = cart.reduce((acc, item) => acc + item.price, 0);
       const paymentMethod = document.getElementById('posPaymentMethod').value;
 
       try {
-        await addDoc(collection(db, "sales"), {
+        const batch = writeBatch(db);
+
+        // 1. Crear documento de venta
+        const saleRef = doc(collection(db, "sales"));
+        batch.set(saleRef, {
           date: today,
           registerId: activeRegister.id,
           appointmentId: currentChargingAppointmentId || null,
-          items: [...cart],
+          items: cart.map(({ name, price, type }) => ({ name, price, type })),
           total,
           paymentMethod,
           createdAt: serverTimestamp()
         });
 
-        if (currentChargingAppointmentId) {
-          await updateDoc(doc(db, "appointments", currentChargingAppointmentId), {
-            status: "completed"
+        // 2. Agrupar cantidades de productos físicos vendidos para descontar stock
+        const productDeductions = {};
+        cart.forEach(c => {
+          if (c.type === "Producto" && c.itemId) {
+            productDeductions[c.itemId] = (productDeductions[c.itemId] || 0) + 1;
+          }
+        });
+
+        for (const [prodId, qtySold] of Object.entries(productDeductions)) {
+          const prodRef = doc(db, "catalog", prodId);
+          batch.update(prodRef, {
+            stock: increment(-qtySold)
           });
-          currentChargingAppointmentId = null;
         }
+
+        // 3. Si venía de una cita, marcarla como cobrada
+        if (currentChargingAppointmentId) {
+          const appRef = doc(db, "appointments", currentChargingAppointmentId);
+          batch.update(appRef, { status: "completed" });
+        }
+
+        await batch.commit();
+        currentChargingAppointmentId = null;
 
         // Preparar ticket térmico para impresión
         document.getElementById('ticketDate').innerText = new Date().toLocaleString();
@@ -714,29 +796,44 @@
         window.print();
       } catch (error) {
         console.error("Error al registrar venta:", error);
-        alert("Hubo un error al guardar la venta en Firebase.");
+        alert("Hubo un error al guardar la venta o actualizar el inventario en Firebase.");
       } finally {
         btn.disabled = false;
         btn.innerText = "Registrar Cobro e Imprimir Ticket";
       }
     };
 
-    // 5. Gestión del Catálogo en Firestore
+    // 6. Gestión del Catálogo e Inventario en Firestore
     document.getElementById('newCatalogItemForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const type = document.getElementById('itemType').value;
       const name = document.getElementById('itemName').value.trim();
       const price = parseFloat(document.getElementById('itemPrice').value);
+      const stockVal = parseInt(document.getElementById('itemStock').value, 10);
 
-      await addDoc(collection(db, "catalog"), {
+      const newItem = {
         type,
         name,
         price,
-        duration: type === "Servicio" ? "45 min" : null
-      });
+        duration: type === "Servicio" ? "45 min" : null,
+        stock: type === "Producto" ? (isNaN(stockVal) ? 0 : stockVal) : null
+      };
 
+      await addDoc(collection(db, "catalog"), newItem);
       document.getElementById('newCatalogItemForm').reset();
+      window.toggleStockInput();
     });
+
+    window.adjustProductStock = async function(itemId, delta) {
+      const item = catalogItems.find(i => i.id === itemId);
+      if (!item) return;
+      const currentStock = Number(item.stock ?? 0);
+      if (currentStock + delta < 0) return;
+
+      await updateDoc(doc(db, "catalog", itemId), {
+        stock: increment(delta)
+      });
+    };
 
     window.deleteCatalogItem = async function(itemId) {
       if (!confirm("¿Eliminar este ítem del catálogo?")) return;
@@ -749,12 +846,12 @@
       btn.innerText = "Cargando...";
 
       const initialItems = [
-        { type: "Servicio", name: "Corte & Styling", price: 85, duration: "45 min" },
-        { type: "Servicio", name: "Tinte Completo & Hidratación", price: 250, duration: "120 min" },
-        { type: "Servicio", name: "Manicure Gelish", price: 90, duration: "45 min" },
-        { type: "Servicio", name: "Pedicure Spa", price: 110, duration: "60 min" },
-        { type: "Producto", name: "Shampoo Sin Sal 500ml", price: 140 },
-        { type: "Producto", name: "Mascarilla Capilar Keratina", price: 125 }
+        { type: "Servicio", name: "Corte & Styling", price: 85, duration: "45 min", stock: null },
+        { type: "Servicio", name: "Tinte Completo & Hidratación", price: 250, duration: "120 min", stock: null },
+        { type: "Servicio", name: "Manicure Gelish", price: 90, duration: "45 min", stock: null },
+        { type: "Servicio", name: "Pedicure Spa", price: 110, duration: "60 min", stock: null },
+        { type: "Producto", name: "Shampoo Sin Sal 500ml", price: 140, duration: null, stock: 12 },
+        { type: "Producto", name: "Mascarilla Capilar Keratina", price: 125, duration: null, stock: 8 }
       ];
 
       for (const item of initialItems) {
@@ -771,18 +868,39 @@
         return;
       }
 
-      list.innerHTML = catalogItems.map(item => `
-        <div class="p-4 border border-slate-200 dark:border-slate-700 rounded-xl flex justify-between items-center">
-          <div>
-            <p class="text-xs text-slate-400">${item.type}</p>
-            <p class="font-bold text-slate-800 dark:text-slate-100 text-sm">${item.name}</p>
-            <p class="font-bold text-rose-600 dark:text-rose-400 text-sm mt-1">${CURRENCY}${Number(item.price).toFixed(2)}</p>
+      list.innerHTML = catalogItems.map(item => {
+        const isProduct = item.type === "Producto";
+        const stock = Number(item.stock ?? 0);
+        const lowStock = isProduct && stock <= 3;
+
+        const stockControls = isProduct
+          ? `<div class="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+               <span class="text-xs font-semibold ${lowStock ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}">
+                 Existencias: ${stock} u.
+               </span>
+               <div class="flex items-center gap-1">
+                 <button onclick="window.adjustProductStock('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-xs">-</button>
+                 <button onclick="window.adjustProductStock('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-xs">+</button>
+               </div>
+             </div>`
+          : '';
+
+        return `
+          <div class="p-4 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col justify-between">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-xs text-slate-400">${item.type}</p>
+                <p class="font-bold text-slate-800 dark:text-slate-100 text-sm">${item.name}</p>
+                <p class="font-bold text-rose-600 dark:text-rose-400 text-sm mt-1">${CURRENCY}${Number(item.price).toFixed(2)}</p>
+              </div>
+              <button onclick="window.deleteCatalogItem('${item.id}')" class="text-xs text-red-500 hover:text-red-700 font-semibold">
+                Eliminar
+              </button>
+            </div>
+            ${stockControls}
           </div>
-          <button onclick="window.deleteCatalogItem('${item.id}')" class="text-xs text-red-500 hover:text-red-700 font-semibold">
-            Eliminar
-          </button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function updateMetrics() {
