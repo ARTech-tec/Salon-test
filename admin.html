@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Administrativo | Studio Belleza & Spa</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+    if (localStorage.getItem('salon_theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    @media print {
+      body * { visibility: hidden; }
+      #thermalTicketArea, #thermalTicketArea * { visibility: visible; }
+      #thermalTicketArea { position: absolute; left: 0; top: 0; width: 80mm; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors">
+
+  <!-- PANTALLA DE LOGIN -->
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center px-4 relative">
+    <button type="button" onclick="toggleTheme()" title="Cambiar tema claro/oscuro"
+      class="absolute top-5 right-5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold">
+      <span class="theme-icon-label">🌙</span>
+    </button>
+
+    <div class="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8">
+      <div class="text-center mb-6">
+        <div class="w-12 h-12 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-xl mx-auto mb-3">
+          SB
+        </div>
+        <h1 class="text-xl font-bold text-slate-900 dark:text-white">Acceso Administrativo</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Ingresa tus credenciales para gestionar el salón</p>
+      </div>
+
+      <form id="adminLoginForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Correo Electrónico</label>
+          <input type="email" id="adminEmail" placeholder="admin@studiobelleza.com" required
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Contraseña</label>
+          <input type="password" id="adminPassword" placeholder="••••••••" required
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+        </div>
+        <p id="loginErrorMsg" class="hidden text-xs text-red-600 dark:text-red-400 font-medium text-center"></p>
+        <button type="submit" id="loginBtn"
+          class="w-full bg-slate-900 dark:bg-rose-600 hover:bg-slate-800 dark:hover:bg-rose-700 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
+          Iniciar Sesión
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD ADMINISTRATIVO -->
+  <div id="adminDashboard" class="hidden min-h-screen flex flex-col">
+    <!-- Barra Superior -->
+    <header class="bg-slate-900 dark:bg-slate-900/95 border-b border-slate-800 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-rose-600 flex items-center justify-center font-bold">SB</div>
+        <div>
+          <h1 class="font-bold text-sm sm:text-base">Studio Belleza & Spa — Administración</h1>
+          <p id="loggedUserEmail" class="text-xs text-slate-400">Gestión de Citas, Caja y Ventas</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="headerCashBadge" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-950 text-red-300 border border-red-800">
+          ● Caja Cerrada
+        </span>
+        <button onclick="switchTab('agenda')" id="tab-agenda" class="nav-tab px-3.5 py-2 rounded-lg text-xs font-semibold bg-rose-600 text-white">
+          Agenda
+        </button>
+        <button onclick="switchTab('pos')" id="tab-pos" class="nav-tab px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">
+          Punto de Venta
+        </button>
+        <button onclick="switchTab('cash')" id="tab-cash" class="nav-tab px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">
+          Caja
+        </button>
+        <button onclick="switchTab('catalog')" id="tab-catalog" class="nav-tab px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800">
+          Catálogo
+        </button>
+        <button type="button" onclick="toggleTheme()" title="Cambiar tema claro/oscuro"
+          class="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors">
+          <span class="theme-icon-label">🌙</span>
+        </button>
+        <button onclick="logoutAdmin()" class="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-red-600 text-slate-200 transition-colors">
+          Salir
+        </button>
+      </div>
+    </header>
+
+    <!-- Métricas Rápidas -->
+    <section class="max-w-6xl w-full mx-auto px-4 pt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Citas de Hoy</p>
+        <p id="metricTodayAppointments" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Ingresos del Día</p>
+        <p id="metricTodaySales" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">Q0.00</p>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Pendientes de Cobro</p>
+        <p id="metricPendingCount" class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">0</p>
+      </div>
+    </section>
+
+    <!-- Contenido Dinámico por Pestaña -->
+    <main class="max-w-6xl w-full mx-auto px-4 py-6 flex-1">
+      
+      <!-- PESTAÑA 1: AGENDA DE CITAS -->
+      <div id="view-agenda" class="tab-view bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+        <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Control de Citas</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Las reservas hechas en el link público aparecen aquí en tiempo real.</p>
+          </div>
+          <input type="date" id="adminDateFilter" class="px-3.5 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
+                <th class="py-3 px-4">Hora</th>
+                <th class="py-3 px-4">Cliente</th>
+                <th class="py-3 px-4">Servicio</th>
+                <th class="py-3 px-4">Precio</th>
+                <th class="py-3 px-4">Estado</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="appointmentsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+              <!-- Filas dinámicas -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PESTAÑA 2: PUNTO DE VENTA (POS) -->
+      <div id="view-pos" class="tab-view hidden space-y-4">
+        <!-- Alerta de Caja Cerrada -->
+        <div id="posClosedRegisterAlert" class="hidden bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="text-xl">⚠️</span>
+            <div>
+              <p class="font-bold text-sm text-amber-900 dark:text-amber-200">La caja se encuentra cerrada</p>
+              <p class="text-xs text-amber-700 dark:text-amber-300">Debes realizar la apertura de caja con un monto inicial antes de poder procesar cobros.</p>
+            </div>
+          </div>
+          <button onclick="switchTab('cash')" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl transition-colors">
+            Ir a Abrir Caja
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Selección de Servicios y Productos -->
+          <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Agregar Servicios o Productos a la Venta</h2>
+            <div id="posItemsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <!-- Ítems dinámicos -->
+            </div>
+          </div>
+
+          <!-- Carrito / Resumen de Cobro -->
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">Ticket de Venta</h3>
+              <div id="posCartList" class="py-4 space-y-3 max-h-64 overflow-y-auto text-sm">
+                <p class="text-slate-400 text-center py-6">Selecciona un ítem para cobrar</p>
+              </div>
+            </div>
+
+            <div class="border-t border-slate-200 dark:border-slate-800 pt-4 space-y-4">
+              <div class="flex justify-between items-center text-lg font-bold">
+                <span>Total a Cobrar:</span>
+                <span id="posCartTotal" class="text-rose-600 dark:text-rose-400">Q0.00</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Método de Pago</label>
+                <select id="posPaymentMethod" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia Bancaria</option>
+                  <option value="Tarjeta">Tarjeta POS</option>
+                </select>
+              </div>
+
+              <button onclick="processSale()" id="processSaleBtn"
+                class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl text-sm transition-colors">
+                Registrar Cobro e Imprimir Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PESTAÑA 3: CONTROL DE CAJA -->
+      <div id="view-cash" class="tab-view hidden space-y-6">
+        <!-- Vista cuando la caja está CERRADA -->
+        <div id="cashClosedPanel" class="max-w-lg mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-lg">
+              $
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white">Apertura de Caja</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Inicia el turno indicando el fondo de efectivo disponible.</p>
+            </div>
+          </div>
+
+          <form id="openCashForm" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Monto Inicial en Caja (Q)</label>
+              <input type="number" step="0.01" min="0" id="openingAmountInput" placeholder="Ej. 200.00" required
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Observaciones (Opcional)</label>
+              <input type="text" id="openingNotesInput" placeholder="Ej. Turno mañana - Billetes sencillos"
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+            </div>
+            <button type="submit" id="openCashBtn"
+              class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
+              Abrir Caja Ahora
+            </button>
+          </form>
+        </div>
+
+        <!-- Vista cuando la caja está ABIERTA -->
+        <div id="cashOpenPanel" class="hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-6">
+          <div class="flex flex-wrap justify-between items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                ● Turno Activo
+              </span>
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white mt-2">Arqueo y Control de Caja</h2>
+              <p id="cashOpenedAtText" class="text-xs text-slate-500 dark:text-slate-400"></p>
+            </div>
+            <button onclick="closeCashRegister()" id="closeCashBtn"
+              class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-colors">
+              Realizar Cierre de Caja
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <p class="text-xs text-slate-500 dark:text-slate-400">Fondo Inicial</p>
+              <p id="cashSummaryOpening" class="text-xl font-bold text-slate-900 dark:text-white mt-1">Q0.00</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <p class="text-xs text-slate-500 dark:text-slate-400">Ventas en Efectivo</p>
+              <p id="cashSummaryCashSales" class="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">Q0.00</p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <p class="text-xs text-slate-500 dark:text-slate-400">Transferencia / Tarjeta</p>
+              <p id="cashSummaryDigitalSales" class="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">Q0.00</p>
+            </div>
+            <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+              <p class="text-xs text-rose-700 dark:text-rose-300 font-semibold">Total Efectivo en Gaveta</p>
+              <p id="cashSummaryExpectedDrawer" class="text-xl font-bold text-rose-600 dark:text-rose-400 mt-1">Q0.00</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PESTAÑA 4: CATÁLOGO DE SERVICIOS Y PRODUCTOS -->
+      <div id="view-catalog" class="tab-view hidden space-y-6">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+          <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Agregar Servicio o Producto</h2>
+            <button onclick="seedInitialCatalog()" id="seedBtn"
+              class="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl transition-colors">
+              + Cargar Catálogo Base de Ejemplo
+            </button>
+          </div>
+          
+          <form id="newCatalogItemForm" class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            <select id="itemType" class="px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
+              <option value="Servicio">Servicio</option>
+              <option value="Producto">Producto</option>
+            </select>
+            <input type="text" id="itemName" placeholder="Nombre (ej. Corte Dama)" required
+              class="sm:col-span-2 px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
+            <input type="number" step="0.01" id="itemPrice" placeholder="Precio (Q)" required
+              class="px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
+            <button type="submit"
+              class="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors">
+              Guardar
+            </button>
+          </form>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+          <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Catálogo Activo en Firebase</h2>
+          <div id="catalogList" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Renderizado dinámico -->
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ÁREA OCULTA PARA IMPRESIÓN TÉRMICA (80mm) -->
+  <div id="thermalTicketArea" class="hidden p-4 font-mono text-xs text-black bg-white">
+    <div class="text-center border-b border-dashed border-black pb-2 mb-2">
+      <p class="font-bold text-sm">STUDIO BELLEZA & SPA</p>
+      <p>Comprobante de Venta</p>
+      <p id="ticketDate"></p>
+    </div>
+    <div id="ticketItems" class="space-y-1 border-b border-dashed border-black pb-2 mb-2"></div>
+    <div class="flex justify-between font-bold text-sm">
+      <span>TOTAL:</span>
+      <span id="ticketTotal"></span>
+    </div>
+    <p id="ticketPayment" class="mt-1"></p>
+    <p class="text-center mt-4">¡Gracias por su preferencia!</p>
+  </div>
+
+  <script>
+    function updateThemeIcons() {
+      const isDark = document.documentElement.classList.contains('dark');
+      document.querySelectorAll('.theme-icon-label').forEach(el => {
+        el.innerText = isDark ? '☀️' : '🌙';
+      });
+    }
+    window.toggleTheme = function() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('salon_theme', isDark ? 'dark' : 'light');
+      updateThemeIcons();
+    };
+    updateThemeIcons();
+  </script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+    import { 
+      getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut 
+    } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
+    import { 
+      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBwSUvHwZUg6x51ffGhBKLRie0ai7xVpXc",
+      authDomain: "salon-belleza-app-b1dc8.firebaseapp.com",
+      projectId: "salon-belleza-app-b1dc8",
+      storageBucket: "salon-belleza-app-b1dc8.firebasestorage.app",
+      messagingSenderId: "1048355284286",
+      appId: "1:1048355284286:web:648cc93607f6284482b86f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const CURRENCY = "Q";
+    const today = new Date().toISOString().split('T')[0];
+
+    let catalogItems = [];
+    let appointments = [];
+    let sales = [];
+    let cart = [];
+    let currentChargingAppointmentId = null;
+    let activeRegister = null; // Guarda el documento de caja abierta
+
+    // 1. Control de Sesión con Firebase Authentication
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('adminDashboard').classList.remove('hidden');
+        document.getElementById('loggedUserEmail').innerText = `Sesión activa: ${user.email}`;
+        initAdminListeners();
+      } else {
+        document.getElementById('adminDashboard').classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value;
+      const errorMsg = document.getElementById('loginErrorMsg');
+      const loginBtn = document.getElementById('loginBtn');
+
+      errorMsg.classList.add('hidden');
+      loginBtn.disabled = true;
+      loginBtn.innerText = "Verificando...";
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        errorMsg.innerText = "Correo o contraseña incorrectos.";
+        errorMsg.classList.remove('hidden');
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.innerText = "Iniciar Sesión";
+      }
+    });
+
+    window.logoutAdmin = async function() {
+      await signOut(auth);
+    };
+
+    window.switchTab = function(tabName) {
+      document.querySelectorAll('.tab-view').forEach(v => v.classList.add('hidden'));
+      document.getElementById(`view-${tabName}`).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-tab').forEach(t => {
+        t.classList.remove('bg-rose-600', 'text-white');
+        t.classList.add('text-slate-300');
+      });
+      const activeBtn = document.getElementById(`tab-${tabName}`);
+      activeBtn.classList.add('bg-rose-600', 'text-white');
+      activeBtn.classList.remove('text-slate-300');
+    };
+
+    // 2. Listeners en Tiempo Real con Cloud Firestore
+    let listenersStarted = false;
+    function initAdminListeners() {
+      if (listenersStarted) return;
+      listenersStarted = true;
+
+      const dateFilter = document.getElementById('adminDateFilter');
+      dateFilter.value = today;
+      dateFilter.addEventListener('change', renderAppointments);
+
+      // Escuchar Estado de Caja Abierta
+      const qOpenRegister = query(collection(db, "cash_registers"), where("status", "==", "open"));
+      onSnapshot(qOpenRegister, (snapshot) => {
+        if (snapshot.empty) {
+          activeRegister = null;
+        } else {
+          const docSnap = snapshot.docs[0];
+          activeRegister = { id: docSnap.id, ...docSnap.data() };
+        }
+        updateCashRegisterUI();
+      });
+
+      // Escuchar Citas
+      onSnapshot(query(collection(db, "appointments"), orderBy("time", "asc")), (snapshot) => {
+        appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderAppointments();
+        updateMetrics();
+      });
+
+      // Escuchar Catálogo
+      onSnapshot(collection(db, "catalog"), (snapshot) => {
+        catalogItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderPOSItems();
+        renderCatalog();
+      });
+
+      // Escuchar Ventas
+      onSnapshot(collection(db, "sales"), (snapshot) => {
+        sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateMetrics();
+        updateCashRegisterUI();
+      });
+    }
+
+    // 3. Lógica de Apertura y Cierre de Caja
+    function updateCashRegisterUI() {
+      const badge = document.getElementById('headerCashBadge');
+      const posAlert = document.getElementById('posClosedRegisterAlert');
+      const saleBtn = document.getElementById('processSaleBtn');
+      const closedPanel = document.getElementById('cashClosedPanel');
+      const openPanel = document.getElementById('cashOpenPanel');
+
+      if (!activeRegister) {
+        badge.innerText = "● Caja Cerrada";
+        badge.className = "px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-950 text-red-300 border border-red-800";
+        posAlert.classList.remove('hidden');
+        saleBtn.disabled = true;
+        saleBtn.innerText = "Abre la Caja para Cobrar";
+        closedPanel.classList.remove('hidden');
+        openPanel.classList.add('hidden');
+      } else {
+        badge.innerText = "● Caja Abierta";
+        badge.className = "px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800";
+        posAlert.classList.add('hidden');
+        saleBtn.disabled = false;
+        saleBtn.innerText = "Registrar Cobro e Imprimir Ticket";
+        closedPanel.classList.add('hidden');
+        openPanel.classList.remove('hidden');
+
+        // Calcular totales del turno activo
+        const shiftSales = sales.filter(s => s.registerId === activeRegister.id);
+        const cashSales = shiftSales
+          .filter(s => s.paymentMethod === "Efectivo")
+          .reduce((acc, s) => acc + Number(s.total), 0);
+        const digitalSales = shiftSales
+          .filter(s => s.paymentMethod !== "Efectivo")
+          .reduce((acc, s) => acc + Number(s.total), 0);
+        const opening = Number(activeRegister.openingAmount || 0);
+
+        document.getElementById('cashOpenedAtText').innerText = `Abierta el ${activeRegister.date} por ${activeRegister.openedBy || 'Administrador'}`;
+        document.getElementById('cashSummaryOpening').innerText = `${CURRENCY}${opening.toFixed(2)}`;
+        document.getElementById('cashSummaryCashSales').innerText = `${CURRENCY}${cashSales.toFixed(2)}`;
+        document.getElementById('cashSummaryDigitalSales').innerText = `${CURRENCY}${digitalSales.toFixed(2)}`;
+        document.getElementById('cashSummaryExpectedDrawer').innerText = `${CURRENCY}${(opening + cashSales).toFixed(2)}`;
+      }
+    }
+
+    document.getElementById('openCashForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (activeRegister) return alert("Ya existe una caja abierta.");
+
+      const btn = document.getElementById('openCashBtn');
+      btn.disabled = true;
+      btn.innerText = "Abriendo caja...";
+
+      const openingAmount = parseFloat(document.getElementById('openingAmountInput').value) || 0;
+      const notes = document.getElementById('openingNotesInput').value.trim();
+
+      try {
+        await addDoc(collection(db, "cash_registers"), {
+          date: today,
+          openingAmount,
+          notes,
+          status: "open",
+          openedBy: auth.currentUser ? auth.currentUser.email : "Admin",
+          openedAt: serverTimestamp()
+        });
+        document.getElementById('openCashForm').reset();
+      } catch (error) {
+        console.error("Error al abrir caja:", error);
+        alert("No se pudo abrir la caja. Revisa las reglas de Firestore para 'cash_registers'.");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Abrir Caja Ahora";
+      }
+    });
+
+    window.closeCashRegister = async function() {
+      if (!activeRegister) return;
+      if (!confirm("¿Confirmas el cierre de caja actual? Ya no podrás registrar cobros hasta abrir un nuevo turno.")) return;
+
+      const shiftSales = sales.filter(s => s.registerId === activeRegister.id);
+      const totalSales = shiftSales.reduce((acc, s) => acc + Number(s.total), 0);
+
+      await updateDoc(doc(db, "cash_registers", activeRegister.id), {
+        status: "closed",
+        closingSalesTotal: totalSales,
+        closedAt: serverTimestamp()
+      });
+    };
+
+    function renderAppointments() {
+      const filterDate = document.getElementById('adminDateFilter').value;
+      const filtered = appointments.filter(a => a.date === filterDate);
+      const tbody = document.getElementById('appointmentsTableBody');
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">No hay citas registradas para esta fecha.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(app => {
+        let badge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Pendiente</span>`;
+        if (app.status === 'completed') {
+          badge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Cobrada</span>`;
+        } else if (app.status === 'cancelled') {
+          badge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300">Cancelada</span>`;
+        }
+
+        const actionBtn = (app.status !== 'completed' && app.status !== 'cancelled')
+          ? `<div class="flex justify-end gap-2">
+               <button onclick="window.sendAppointmentToPOS('${app.id}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg">Cobrar</button>
+               <button onclick="window.cancelAppointment('${app.id}')" class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-950 text-slate-600 dark:text-slate-300 hover:text-red-600 text-xs font-semibold rounded-lg">Cancelar</button>
+             </div>`
+          : `<span class="text-xs text-slate-400">Sin acciones</span>`;
+
+        return `
+          <tr>
+            <td class="py-3.5 px-4 font-bold text-slate-900 dark:text-white">${app.time}</td>
+            <td class="py-3.5 px-4">
+              <p class="font-semibold text-slate-800 dark:text-slate-100">${app.clientName}</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400">${app.clientPhone}</p>
+            </td>
+            <td class="py-3.5 px-4">${app.serviceName}</td>
+            <td class="py-3.5 px-4 font-semibold">${CURRENCY}${Number(app.price).toFixed(2)}</td>
+            <td class="py-3.5 px-4">${badge}</td>
+            <td class="py-3.5 px-4 text-right">${actionBtn}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.cancelAppointment = async function(appId) {
+      if (!confirm("¿Seguro que deseas cancelar esta cita? El horario volverá a quedar libre en el link público.")) return;
+      await updateDoc(doc(db, "appointments", appId), { status: "cancelled" });
+    };
+
+    window.sendAppointmentToPOS = function(appId) {
+      const app = appointments.find(a => a.id === appId);
+      if (!app) return;
+      currentChargingAppointmentId = appId;
+      cart = [{ name: `${app.serviceName} (${app.clientName})`, price: Number(app.price) }];
+      renderCart();
+      window.switchTab('pos');
+    };
+
+    function renderPOSItems() {
+      const grid = document.getElementById('posItemsGrid');
+      if (catalogItems.length === 0) {
+        grid.innerHTML = `<p class="text-xs text-slate-400 col-span-2 py-6 text-center">Ve a la pestaña "Catálogo" para agregar tus servicios y productos.</p>`;
+        return;
+      }
+
+      grid.innerHTML = catalogItems.map(item => `
+        <div onclick="window.addToCart('${item.id}')"
+          class="cursor-pointer p-4 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-rose-500 transition-all flex justify-between items-center">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${item.type}</span>
+            <p class="font-semibold text-sm text-slate-800 dark:text-slate-100 mt-1">${item.name}</p>
+          </div>
+          <span class="font-bold text-rose-600 dark:text-rose-400">${CURRENCY}${Number(item.price).toFixed(2)}</span>
+        </div>
+      `).join('');
+    }
+
+    window.addToCart = function(itemId) {
+      const item = catalogItems.find(i => i.id === itemId);
+      if (!item) return;
+      cart.push({ name: item.name, price: Number(item.price) });
+      renderCart();
+    };
+
+    window.removeFromCart = function(index) {
+      cart.splice(index, 1);
+      renderCart();
+    };
+
+    function renderCart() {
+      const list = document.getElementById('posCartList');
+      if (cart.length === 0) {
+        list.innerHTML = `<p class="text-slate-400 text-center py-6">Selecciona un ítem para cobrar</p>`;
+        document.getElementById('posCartTotal').innerText = `${CURRENCY}0.00`;
+        return;
+      }
+
+      let total = 0;
+      list.innerHTML = cart.map((item, idx) => {
+        total += item.price;
+        return `
+          <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2.5 rounded-lg">
+            <span class="text-slate-700 dark:text-slate-200 font-medium text-xs">${item.name}</span>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-xs">${CURRENCY}${item.price.toFixed(2)}</span>
+              <button onclick="window.removeFromCart(${idx})" class="text-red-500 hover:text-red-700 font-bold text-xs">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('posCartTotal').innerText = `${CURRENCY}${total.toFixed(2)}`;
+    }
+
+    // 4. Registrar Venta vinculada a la Caja Abierta
+    window.processSale = async function() {
+      if (!activeRegister) {
+        alert("La caja está cerrada. Abre la caja primero para poder registrar cobros.");
+        window.switchTab('cash');
+        return;
+      }
+      if (cart.length === 0) return alert("Agrega al menos un servicio o producto para cobrar.");
+
+      const btn = document.getElementById('processSaleBtn');
+      btn.disabled = true;
+      btn.innerText = "Registrando venta...";
+
+      const total = cart.reduce((acc, item) => acc + item.price, 0);
+      const paymentMethod = document.getElementById('posPaymentMethod').value;
+
+      try {
+        await addDoc(collection(db, "sales"), {
+          date: today,
+          registerId: activeRegister.id,
+          appointmentId: currentChargingAppointmentId || null,
+          items: [...cart],
+          total,
+          paymentMethod,
+          createdAt: serverTimestamp()
+        });
+
+        if (currentChargingAppointmentId) {
+          await updateDoc(doc(db, "appointments", currentChargingAppointmentId), {
+            status: "completed"
+          });
+          currentChargingAppointmentId = null;
+        }
+
+        // Preparar ticket térmico para impresión
+        document.getElementById('ticketDate').innerText = new Date().toLocaleString();
+        document.getElementById('ticketItems').innerHTML = cart.map(i => `
+          <div class="flex justify-between"><span>${i.name}</span><span>${CURRENCY}${i.price.toFixed(2)}</span></div>
+        `).join('');
+        document.getElementById('ticketTotal').innerText = `${CURRENCY}${total.toFixed(2)}`;
+        document.getElementById('ticketPayment').innerText = `Pago: ${paymentMethod}`;
+
+        cart = [];
+        renderCart();
+        window.print();
+      } catch (error) {
+        console.error("Error al registrar venta:", error);
+        alert("Hubo un error al guardar la venta en Firebase.");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Registrar Cobro e Imprimir Ticket";
+      }
+    };
+
+    // 5. Gestión del Catálogo en Firestore
+    document.getElementById('newCatalogItemForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const type = document.getElementById('itemType').value;
+      const name = document.getElementById('itemName').value.trim();
+      const price = parseFloat(document.getElementById('itemPrice').value);
+
+      await addDoc(collection(db, "catalog"), {
+        type,
+        name,
+        price,
+        duration: type === "Servicio" ? "45 min" : null
+      });
+
+      document.getElementById('newCatalogItemForm').reset();
+    });
+
+    window.deleteCatalogItem = async function(itemId) {
+      if (!confirm("¿Eliminar este ítem del catálogo?")) return;
+      await deleteDoc(doc(db, "catalog", itemId));
+    };
+
+    window.seedInitialCatalog = async function() {
+      const btn = document.getElementById('seedBtn');
+      btn.disabled = true;
+      btn.innerText = "Cargando...";
+
+      const initialItems = [
+        { type: "Servicio", name: "Corte & Styling", price: 85, duration: "45 min" },
+        { type: "Servicio", name: "Tinte Completo & Hidratación", price: 250, duration: "120 min" },
+        { type: "Servicio", name: "Manicure Gelish", price: 90, duration: "45 min" },
+        { type: "Servicio", name: "Pedicure Spa", price: 110, duration: "60 min" },
+        { type: "Producto", name: "Shampoo Sin Sal 500ml", price: 140 },
+        { type: "Producto", name: "Mascarilla Capilar Keratina", price: 125 }
+      ];
+
+      for (const item of initialItems) {
+        await addDoc(collection(db, "catalog"), item);
+      }
+
+      btn.innerText = "¡Catálogo Cargado!";
+    };
+
+    function renderCatalog() {
+      const list = document.getElementById('catalogList');
+      if (catalogItems.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400 col-span-3">Aún no hay servicios ni productos registrados.</p>`;
+        return;
+      }
+
+      list.innerHTML = catalogItems.map(item => `
+        <div class="p-4 border border-slate-200 dark:border-slate-700 rounded-xl flex justify-between items-center">
+          <div>
+            <p class="text-xs text-slate-400">${item.type}</p>
+            <p class="font-bold text-slate-800 dark:text-slate-100 text-sm">${item.name}</p>
+            <p class="font-bold text-rose-600 dark:text-rose-400 text-sm mt-1">${CURRENCY}${Number(item.price).toFixed(2)}</p>
+          </div>
+          <button onclick="window.deleteCatalogItem('${item.id}')" class="text-xs text-red-500 hover:text-red-700 font-semibold">
+            Eliminar
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function updateMetrics() {
+      const todayApps = appointments.filter(a => a.date === today && a.status !== 'cancelled');
+      const todaySalesTotal = sales.filter(s => s.date === today).reduce((acc, s) => acc + Number(s.total), 0);
+      const pendingApps = todayApps.filter(a => a.status === 'pending');
+
+      document.getElementById('metricTodayAppointments').innerText = todayApps.length;
+      document.getElementById('metricTodaySales').innerText = `${CURRENCY}${todaySalesTotal.toFixed(2)}`;
+      document.getElementById('metricPendingCount').innerText = pendingApps.length;
+    }
+  </script>
+</body>
+</html>
