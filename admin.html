@@ -139,9 +139,7 @@
                 <th class="py-3 px-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody id="appointmentsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
-              <!-- Filas dinámicas -->
-            </tbody>
+            <tbody id="appointmentsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm"></tbody>
           </table>
         </div>
       </div>
@@ -164,9 +162,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
             <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Agregar Servicios o Productos a la Venta</h2>
-            <div id="posItemsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <!-- Ítems dinámicos -->
-            </div>
+            <div id="posItemsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
           </div>
 
           <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between">
@@ -291,19 +287,34 @@
               class="px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
             <input type="text" id="itemExtra" placeholder="Duración (45 min)"
               class="px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm">
-            <button type="submit"
+            <button type="submit" id="saveCatalogBtn"
               class="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors">
               Guardar
             </button>
+
+            <!-- Campo de Foto (Solo visible al elegir Especialista) -->
+            <div id="specialistPhotoField" class="hidden sm:col-span-6 pt-2 flex flex-wrap items-center gap-4 border-t border-slate-100 dark:border-slate-800">
+              <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-rose-400 bg-rose-50/50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs font-semibold hover:bg-rose-100/70 transition-colors">
+                <span>📷 Seleccionar Foto de Perfil</span>
+                <input type="file" id="specialistPhotoInput" accept="image/*" class="hidden" onchange="previewSpecialistPhoto(event)">
+              </label>
+              <div id="photoPreviewWrapper" class="hidden items-center gap-2">
+                <img id="photoPreviewImg" src="" alt="Vista previa" class="w-10 h-10 rounded-full object-cover border border-rose-500">
+                <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Foto lista para guardar</span>
+                <button type="button" onclick="clearSpecialistPhoto()" class="text-xs text-red-500 hover:underline ml-1">Quitar</button>
+              </div>
+              <span class="text-[11px] text-slate-400">Opcional: si no subes foto, se mostrarán sus iniciales.</span>
+            </div>
           </form>
         </div>
 
         <!-- Equipo de Especialistas -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-          <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Equipo de Especialistas</h2>
-          <div id="specialistsAdminList" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <!-- Especialistas dinámicos -->
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Equipo de Especialistas</h2>
+            <span class="text-xs text-slate-500 dark:text-slate-400">Haz clic en "Cambiar foto" para actualizar la imagen en cualquier momento</span>
           </div>
+          <div id="specialistsAdminList" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
         </div>
 
         <!-- Catálogo de Servicios y Productos -->
@@ -312,14 +323,15 @@
             <h2 class="text-lg font-bold text-slate-900 dark:text-white">Servicios y Productos</h2>
             <span class="text-xs text-slate-500 dark:text-slate-400">Usa + y - en productos para ajustar stock</span>
           </div>
-          <div id="catalogList" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <!-- Renderizado dinámico -->
-          </div>
+          <div id="catalogList" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
         </div>
       </div>
 
     </main>
   </div>
+
+  <!-- Input oculto para actualizar foto de una especialista existente -->
+  <input type="file" id="updateExistingPhotoInput" accept="image/*" class="hidden">
 
   <!-- ÁREA OCULTA PARA IMPRESIÓN TÉRMICA (80mm) -->
   <div id="thermalTicketArea" class="hidden p-4 font-mono text-xs text-black bg-white">
@@ -338,6 +350,8 @@
   </div>
 
   <script>
+    let pendingPhotoBase64 = null;
+
     function updateThemeIcons() {
       const isDark = document.documentElement.classList.contains('dark');
       document.querySelectorAll('.theme-icon-label').forEach(el => {
@@ -351,11 +365,58 @@
     };
     updateThemeIcons();
 
+    // Comprime y recorta la foto en cuadrado (220x220px) para guardarla ligera en Firestore
+    window.compressImageToAvatar = function(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const size = 220;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            const minSide = Math.min(img.width, img.height);
+            const sx = (img.width - minSide) / 2;
+            const sy = (img.height - minSide) / 2;
+
+            ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    };
+
+    window.previewSpecialistPhoto = async function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      pendingPhotoBase64 = await window.compressImageToAvatar(file);
+      document.getElementById('photoPreviewImg').src = pendingPhotoBase64;
+      const wrapper = document.getElementById('photoPreviewWrapper');
+      wrapper.classList.remove('hidden');
+      wrapper.classList.add('flex');
+    };
+
+    window.clearSpecialistPhoto = function() {
+      pendingPhotoBase64 = null;
+      document.getElementById('specialistPhotoInput').value = "";
+      const wrapper = document.getElementById('photoPreviewWrapper');
+      wrapper.classList.add('hidden');
+      wrapper.classList.remove('flex');
+    };
+
     window.updateCatalogFormInputs = function() {
       const type = document.getElementById('itemType').value;
       const nameInput = document.getElementById('itemName');
       const priceInput = document.getElementById('itemPrice');
       const extraInput = document.getElementById('itemExtra');
+      const photoField = document.getElementById('specialistPhotoField');
 
       if (type === 'Producto') {
         nameInput.placeholder = "Nombre del producto";
@@ -368,6 +429,8 @@
         extraInput.required = true;
         extraInput.value = "";
         extraInput.placeholder = "Stock inicial";
+        photoField.classList.add('hidden');
+        window.clearSpecialistPhoto();
       } else if (type === 'Especialista') {
         nameInput.placeholder = "Nombre (ej. Valeria Cruz)";
         priceInput.disabled = true;
@@ -379,6 +442,7 @@
         extraInput.required = true;
         extraInput.value = "";
         extraInput.placeholder = "Cargo (ej. Colorista)";
+        photoField.classList.remove('hidden');
       } else {
         nameInput.placeholder = "Nombre del servicio";
         priceInput.disabled = false;
@@ -389,6 +453,8 @@
         extraInput.required = false;
         extraInput.value = "";
         extraInput.placeholder = "Duración (45 min)";
+        photoField.classList.add('hidden');
+        window.clearSpecialistPhoto();
       }
     };
   </script>
@@ -424,6 +490,7 @@
     let cart = [];
     let currentChargingAppointmentId = null;
     let activeRegister = null;
+    let specialistIdToUpdatePhoto = null;
 
     // 1. Control de Sesión
     onAuthStateChanged(auth, (user) => {
@@ -582,7 +649,7 @@
         document.getElementById('openCashForm').reset();
       } catch (error) {
         console.error("Error al abrir caja:", error);
-        alert("No se pudo abrir la caja. Revisa las reglas de Firestore para 'cash_registers'.");
+        alert("No se pudo abrir la caja. Revisa las reglas de Firestore.");
       } finally {
         btn.disabled = false;
         btn.innerText = "Abrir Caja Ahora";
@@ -833,29 +900,59 @@
       }
     };
 
-    // 6. Gestión del Catálogo y Especialistas en Firestore
+    // 6. Gestión del Catálogo y Especialistas (con Foto)
     document.getElementById('newCatalogItemForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const type = document.getElementById('itemType').value;
-      const name = document.getElementById('itemName').value.trim();
-      const price = parseFloat(document.getElementById('itemPrice').value);
-      const extra = document.getElementById('itemExtra').value.trim();
+      const saveBtn = document.getElementById('saveCatalogBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Guardando...";
 
-      let newItem = { type, name };
+      try {
+        const type = document.getElementById('itemType').value;
+        const name = document.getElementById('itemName').value.trim();
+        const price = parseFloat(document.getElementById('itemPrice').value);
+        const extra = document.getElementById('itemExtra').value.trim();
 
-      if (type === "Servicio") {
-        newItem.price = price;
-        newItem.duration = extra || "45 min";
-      } else if (type === "Producto") {
-        newItem.price = price;
-        newItem.stock = parseInt(extra, 10) || 0;
-      } else if (type === "Especialista") {
-        newItem.role = extra || "Especialista";
+        let newItem = { type, name };
+
+        if (type === "Servicio") {
+          newItem.price = price;
+          newItem.duration = extra || "45 min";
+        } else if (type === "Producto") {
+          newItem.price = price;
+          newItem.stock = parseInt(extra, 10) || 0;
+        } else if (type === "Especialista") {
+          newItem.role = extra || "Especialista";
+          newItem.photoUrl = pendingPhotoBase64 || null;
+        }
+
+        await addDoc(collection(db, "catalog"), newItem);
+        document.getElementById('newCatalogItemForm').reset();
+        window.clearSpecialistPhoto();
+        window.updateCatalogFormInputs();
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Guardar";
       }
+    });
 
-      await addDoc(collection(db, "catalog"), newItem);
-      document.getElementById('newCatalogItemForm').reset();
-      window.updateCatalogFormInputs();
+    // Actualizar foto de una especialista ya creada
+    window.triggerUpdateSpecialistPhoto = function(id) {
+      specialistIdToUpdatePhoto = id;
+      const input = document.getElementById('updateExistingPhotoInput');
+      input.value = "";
+      input.click();
+    };
+
+    document.getElementById('updateExistingPhotoInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file || !specialistIdToUpdatePhoto) return;
+
+      const compressedBase64 = await window.compressImageToAvatar(file);
+      await updateDoc(doc(db, "catalog", specialistIdToUpdatePhoto), {
+        photoUrl: compressedBase64
+      });
+      specialistIdToUpdatePhoto = null;
     });
 
     window.adjustProductStock = async function(itemId, delta) {
@@ -886,9 +983,9 @@
         { type: "Servicio", name: "Pedicure Spa", price: 110, duration: "60 min" },
         { type: "Producto", name: "Shampoo Sin Sal 500ml", price: 140, stock: 12 },
         { type: "Producto", name: "Mascarilla Capilar Keratina", price: 125, stock: 8 },
-        { type: "Especialista", name: "Valeria Cruz", role: "Estilista Master" },
-        { type: "Especialista", name: "Camila Duarte", role: "Colorista" },
-        { type: "Especialista", name: "Elena Morales", role: "Especialista Spa" }
+        { type: "Especialista", name: "Valeria Cruz", role: "Estilista Master", photoUrl: null },
+        { type: "Especialista", name: "Camila Duarte", role: "Colorista", photoUrl: null },
+        { type: "Especialista", name: "Elena Morales", role: "Especialista Spa", photoUrl: null }
       ];
 
       for (const item of initialItems) {
@@ -908,22 +1005,30 @@
       if (specialists.length === 0) {
         specList.innerHTML = `<p class="text-xs text-slate-400 col-span-3">Aún no has registrado especialistas (en la página pública se mostrarán las 3 de ejemplo).</p>`;
       } else {
-        specList.innerHTML = specialists.map(esp => `
-          <div class="p-4 border border-slate-200 dark:border-slate-700 rounded-xl flex justify-between items-center">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center justify-center">
-                ${esp.name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase()}
+        specList.innerHTML = specialists.map(esp => {
+          const initials = esp.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+          const avatarHtml = esp.photoUrl
+            ? `<img src="${esp.photoUrl}" alt="${esp.name}" class="w-11 h-11 rounded-full object-cover border border-rose-500 shrink-0">`
+            : `<div class="w-11 h-11 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center justify-center shrink-0">${initials}</div>`;
+
+          return `
+            <div class="p-4 border border-slate-200 dark:border-slate-700 rounded-xl flex justify-between items-center gap-2">
+              <div class="flex items-center gap-3 min-w-0">
+                ${avatarHtml}
+                <div class="truncate">
+                  <p class="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">${esp.name}</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 truncate">${esp.role || 'Especialista'}</p>
+                  <button onclick="window.triggerUpdateSpecialistPhoto('${esp.id}')" class="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-semibold mt-0.5">
+                    📷 ${esp.photoUrl ? 'Cambiar foto' : 'Subir foto'}
+                  </button>
+                </div>
               </div>
-              <div>
-                <p class="font-bold text-slate-800 dark:text-slate-100 text-sm">${esp.name}</p>
-                <p class="text-xs text-slate-500 dark:text-slate-400">${esp.role || 'Especialista'}</p>
-              </div>
+              <button onclick="window.deleteCatalogItem('${esp.id}')" class="text-xs text-red-500 hover:text-red-700 font-semibold shrink-0">
+                Eliminar
+              </button>
             </div>
-            <button onclick="window.deleteCatalogItem('${esp.id}')" class="text-xs text-red-500 hover:text-red-700 font-semibold">
-              Eliminar
-            </button>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       }
 
       if (productsAndServices.length === 0) {
